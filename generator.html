@@ -6,71 +6,18 @@
     <title>Генератор iframe для 360°</title>
     <style>
         * { box-sizing: border-box; }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            max-width: 700px;
-            margin: 40px auto;
-            padding: 20px;
-            background: #f5f5f5;
-        }
-        .container {
-            background: white;
-            padding: 30px;
-            border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-        }
-        h1 {
-            margin-top: 0;
-            color: #333;
-            font-size: 24px;
-        }
-        label {
-            display: block;
-            margin: 20px 0 8px;
-            font-weight: 500;
-            color: #555;
-        }
-        input, textarea {
-            width: 100%;
-            padding: 12px;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            font-size: 14px;
-            font-family: monospace;
-        }
-        textarea {
-            height: 130px;
-            resize: vertical;
-            background: #fafafa;
-        }
-        button {
-            margin-top: 20px;
-            padding: 12px 24px;
-            background: #0066cc;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 16px;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-        button:hover {
-            background: #0052a3;
-        }
-        .note {
-            margin-top: 20px;
-            color: #666;
-            font-size: 14px;
-            border-top: 1px solid #eee;
-            padding-top: 20px;
-        }
-        .copy-btn {
-            margin-top: 10px;
-            background: #28a745;
-        }
-        .copy-btn:hover {
-            background: #1e7e34;
-        }
+        body { font-family: system-ui, sans-serif; max-width: 800px; margin: 40px auto; padding: 20px; background: #f5f5f5; }
+        .container { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        h1 { margin-top: 0; }
+        label { display: block; margin: 20px 0 8px; font-weight: 500; }
+        input, textarea { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-family: monospace; }
+        textarea { height: 130px; resize: vertical; background: #fafafa; }
+        button { margin-top: 20px; padding: 12px 24px; background: #0066cc; color: white; border: none; border-radius: 8px; cursor: pointer; }
+        .copy-btn { background: #28a745; margin-left: 10px; }
+        .note { margin-top: 20px; color: #666; font-size: 14px; border-top: 1px solid #eee; padding-top: 20px; }
+        .preview { margin-top: 20px; border: 1px dashed #ccc; padding: 10px; border-radius: 8px; }
+        .option-group { margin: 15px 0; }
+        .option-group label { display: inline; margin: 0 10px 0 0; font-weight: normal; }
     </style>
 </head>
 <body>
@@ -78,63 +25,99 @@
         <h1>🎥 Генератор iframe для 360° панорам</h1>
         
         <label>🔗 Ссылка на изображение (прямой URL):</label>
-        <input type="text" id="imageUrl" placeholder="https://raw.githubusercontent.com/.../panorama.jpg" value="">
+        <input type="text" id="imageUrl" placeholder="https://raw.githubusercontent.com/.../panorama.jpg">
+        
+        <label>📏 Высота iframe (px):</label>
+        <input type="number" id="iframeHeight" value="500" min="100" max="2000">
+        
+        <div class="option-group">
+            <input type="checkbox" id="useSandbox" checked> 
+            <label for="useSandbox">sandbox="allow-scripts allow-same-origin allow-popups"</label>
+        </div>
+        <div class="option-group">
+            <input type="checkbox" id="useAllow" checked> 
+            <label for="useAllow">allow="accelerometer; gyroscope; xr-spatial-tracking"</label>
+        </div>
         
         <button onclick="generateIframe()">✨ Сгенерировать iframe</button>
         
-        <label>📋 Код для вставки в Тильду (или другой сайт):</label>
+        <label>📋 Код для вставки:</label>
         <textarea id="iframeCode" readonly></textarea>
         
-        <button class="copy-btn" onclick="copyToClipboard()">📋 Скопировать код</button>
+        <div>
+            <button class="copy-btn" onclick="copyToClipboard()">📋 Скопировать</button>
+            <button onclick="testIframe()">👁️ Предпросмотр</button>
+        </div>
         
         <div class="note">
-            ⚡️ Используйте этот код в HTML-блоке Тильды (Zero Block).<br>
-            Высота iframe по умолчанию 500px, ширина 100%.<br>
-            Все ваши старые вставки продолжат работать независимо от новых.
+            ⚡️ Используйте в HTML-блоке Тильды (Zero Block).<br>
+            Если не грузится — проверьте прямую ссылку на изображение в браузере.
+        </div>
+        
+        <div id="previewContainer" class="preview" style="display:none;">
+            <p><strong>Предпросмотр:</strong></p>
+            <div id="iframePreview"></div>
         </div>
     </div>
 
     <script>
-        // Базовый URL вашего просмотрщика
+        // ✅✅✅ ИСПРАВЛЕННЫЙ VIEWER_BASE (добавлена буква 'r') ✅✅✅
         const VIEWER_BASE = 'https://vladimirborovikov2004.github.io/360viewergenerator/';
         
         function generateIframe() {
             const imgInput = document.getElementById('imageUrl');
             const imgUrl = imgInput.value.trim();
+            const height = document.getElementById('iframeHeight').value;
+            const useSandbox = document.getElementById('useSandbox').checked;
+            const useAllow = document.getElementById('useAllow').checked;
             
             if (!imgUrl) {
-                alert('Пожалуйста, введите ссылку на изображение');
+                alert('Введите ссылку на изображение');
                 return;
             }
             
-            // Формируем полный URL просмотрщика с параметром
             const viewerUrl = VIEWER_BASE + '?img=' + encodeURIComponent(imgUrl);
             
-            // Генерируем код iframe
-            const iframeCode = `<iframe src="${viewerUrl}" width="100%" height="500" frameborder="0" allowfullscreen style="border: none;"></iframe>`;
+            let sandboxAttr = '';
+            if (useSandbox) {
+                sandboxAttr = ' sandbox="allow-scripts allow-same-origin allow-popups allow-forms"';
+            }
+            
+            let allowAttr = '';
+            if (useAllow) {
+                allowAttr = ' allow="accelerometer; gyroscope; xr-spatial-tracking;"';
+            }
+            
+            const iframeCode = `<iframe src="${viewerUrl}" width="100%" height="${height}" frameborder="0" allowfullscreen${sandboxAttr}${allowAttr} style="border: none;"></iframe>`;
             
             document.getElementById('iframeCode').value = iframeCode;
+            testIframe();
+        }
+        
+        function testIframe() {
+            const code = document.getElementById('iframeCode').value;
+            const container = document.getElementById('previewContainer');
+            const previewDiv = document.getElementById('iframePreview');
+            
+            previewDiv.innerHTML = code;
+            container.style.display = 'block';
         }
         
         function copyToClipboard() {
             const textarea = document.getElementById('iframeCode');
             textarea.select();
-            textarea.setSelectionRange(0, 99999); // Для мобильных
-            
             try {
                 document.execCommand('copy');
-                alert('✅ Код скопирован в буфер обмена!');
-            } catch (err) {
-                alert('❌ Не удалось скопировать. Выделите текст и нажмите Ctrl+C');
+                alert('✅ Скопировано!');
+            } catch (e) {
+                alert('❌ Не удалось. Выделите и скопируйте вручную.');
             }
         }
         
-        // Автогенерация при загрузке, если поле не пустое (для удобства)
         window.onload = function() {
-            const imgInput = document.getElementById('imageUrl');
-            // Можно оставить пустым или вставить пример
-            // imgInput.value = 'https://raw.githubusercontent.com/vladimirborovikov2004/360gls/main/rbadYft7az9NZvofpM1kS1AGtu2iTaWmW4EFKDgwtNygMRECKbPZsAQlnkWiPUrhcRnRqQl1tDKcXSjWpaXQQ__-_2_.jpg';
-            // generateIframe();
+            // Пример с вашим последним изображением (можно поменять)
+            document.getElementById('imageUrl').value = 'https://raw.githubusercontent.com/vladimirborovikov2004/rr/refs/heads/main/_rbadYft7az9NZvofpM1kQ2rdVbvMnGcVKvUeM2j3N6eoIjKfXJO9da4h9WbDxtRgYUiTobiBebzahAavRKOsg%3D%3D%20(1).jpeg';
+            generateIframe();
         };
     </script>
 </body>
