@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>360° Viewer</title>
+    <link rel="stylesheet" href="pannellum.css">
+    <style>
+        * { margin: 0; padding: 0; }
+        html, body { height: 100vh; overflow: hidden; background: black; }
+        #panorama { width: 100%; height: 100vh; }
+    </style>
+</head>
+<body>
+    <div id="panorama"></div>
+    <script src="pannellum.js"></script>
+    <script>
+        // Читаем параметр img из URL (?img=...)
+        const params = new URLSearchParams(window.location.search);
+        let imageUrl = params.get('img');
+        
+        // Если параметр не указан — показываем дефолтное изображение (замените на своё при желании)
+        if (!imageUrl) {
+            imageUrl = 'https://raw.githubusercontent.com/vladimirborovikov2004/360gls/main/rbadYft7az9NZvofpM1kS1AGtu2iTaWmW4EFKDgwtNygMRECKbPZsAQlnkWiPUrhcRnRqQl1tDKcXSjWpaXQQ__-_2_.jpg';
+        }
+        
+        pannellum.viewer('panorama', {
+            type: 'equirectangular',
+            panorama: imageUrl,
+            autoLoad: true,
+            showControls: false,
+            showZoomCtrl: false,
+            mouseZoom: false,
+            default: { yaw: -30, pitch: -10 },
+            minPitch: -75,
+            maxPitch: 90
+        });
+    </script>
+</body>
+</html>
