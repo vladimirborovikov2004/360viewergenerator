@@ -2,6 +2,7 @@
 <html>
 <head>
     <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>360° Viewer</title>
     <link rel="stylesheet" href="pannellum.css">
     <style>
@@ -14,26 +15,35 @@
     <div id="panorama"></div>
     <script src="pannellum.js"></script>
     <script>
-        // Читаем параметр img из URL (?img=...)
-        const params = new URLSearchParams(window.location.search);
-        let imageUrl = params.get('img');
-        
-        // Если параметр не указан — показываем дефолтное изображение (замените на своё при желании)
-        if (!imageUrl) {
-            imageUrl = 'https://raw.githubusercontent.com/vladimirborovikov2004/360gls/main/rbadYft7az9NZvofpM1kS1AGtu2iTaWmW4EFKDgwtNygMRECKbPZsAQlnkWiPUrhcRnRqQl1tDKcXSjWpaXQQ__-_2_.jpg';
-        }
-        
-        pannellum.viewer('panorama', {
-            type: 'equirectangular',
-            panorama: imageUrl,
-            autoLoad: true,
-            showControls: false,
-            showZoomCtrl: false,
-            mouseZoom: false,
-            default: { yaw: -30, pitch: -10 },
-            minPitch: -75,
-            maxPitch: 90
-        });
+        (function() {
+            const params = new URLSearchParams(window.location.search);
+            
+            let imageUrl = params.get('img');
+            if (!imageUrl) {
+                // Дефолтное изображение, если параметр не указан
+                imageUrl = 'https://raw.githubusercontent.com/vladimirborovikov2004/360gls/main/rbadYft7az9NZvofpM1kS1AGtu2iTaWmW4EFKDgwtNygMRECKbPZsAQlnkWiPUrhcRnRqQl1tDKcXSjWpaXQQ__-_2_.jpg';
+            }
+            
+            // Читаем углы и масштаб из параметров
+            const yaw   = parseFloat(params.get('yaw'))   || -30;
+            const pitch = parseFloat(params.get('pitch')) || -10;
+            const hfov  = parseFloat(params.get('hfov'))  || 100;
+            
+            pannellum.viewer('panorama', {
+                type: 'equirectangular',
+                panorama: imageUrl,
+                autoLoad: true,
+                showControls: false,
+                showZoomCtrl: false,
+                mouseZoom: false,
+                default: { yaw: yaw, pitch: pitch },
+                hfov: hfov,
+                minHfov: 30,
+                maxHfov: 120,
+                minPitch: -75,
+                maxPitch: 90
+            });
+        })();
     </script>
 </body>
 </html>
