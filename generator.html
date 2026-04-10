@@ -3,104 +3,136 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Генератор iframe для 360°</title>
+    <title>Генератор 360°</title>
     <style>
         * { box-sizing: border-box; }
-        body { font-family: system-ui, sans-serif; max-width: 800px; margin: 40px auto; padding: 20px; background: #f5f5f5; }
-        .container { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        body {
+            font-family: system-ui, sans-serif;
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
         h1 { margin-top: 0; }
-        label { display: block; margin: 20px 0 8px; font-weight: 500; }
-        input, textarea { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-family: monospace; }
-        textarea { height: 130px; resize: vertical; background: #fafafa; }
-        button { margin-top: 20px; padding: 12px 24px; background: #0066cc; color: white; border: none; border-radius: 8px; cursor: pointer; }
-        .copy-btn { background: #28a745; margin-left: 10px; }
-        .note { margin-top: 20px; color: #666; font-size: 14px; border-top: 1px solid #eee; padding-top: 20px; }
-        .preview { margin-top: 20px; border: 1px dashed #ccc; padding: 10px; border-radius: 8px; }
-        .option-group { margin: 15px 0; }
-        .option-group label { display: inline; margin: 0 10px 0 0; font-weight: normal; }
+        label {
+            display: block;
+            margin: 20px 0 8px;
+            font-weight: 500;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-family: monospace;
+        }
+        textarea {
+            height: 130px;
+            resize: vertical;
+            background: #fafafa;
+        }
+        button {
+            margin-top: 20px;
+            padding: 12px 24px;
+            background: #0066cc;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .copy-btn {
+            background: #28a745;
+            margin-left: 10px;
+        }
+        .preview {
+            margin-top: 20px;
+            border: 1px dashed #ccc;
+            padding: 10px;
+            border-radius: 8px;
+            background: #fafafa;
+        }
+        .row {
+            display: flex;
+            gap: 15px;
+        }
+        .row > div {
+            flex: 1;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🎥 Генератор iframe для 360° панорам</h1>
+        <h1>🎥 Генератор 360° панорам</h1>
         
         <label>🔗 Ссылка на изображение (прямой URL):</label>
         <input type="text" id="imageUrl" placeholder="https://raw.githubusercontent.com/.../panorama.jpg">
         
-        <label>📏 Высота iframe (px):</label>
-        <input type="number" id="iframeHeight" value="500" min="100" max="2000">
-        
-        <div class="option-group">
-            <input type="checkbox" id="useSandbox" checked> 
-            <label for="useSandbox">sandbox="allow-scripts allow-same-origin allow-popups"</label>
-        </div>
-        <div class="option-group">
-            <input type="checkbox" id="useAllow" checked> 
-            <label for="useAllow">allow="accelerometer; gyroscope; xr-spatial-tracking"</label>
+        <div class="row">
+            <div>
+                <label>↔️ Горизонтальный угол (yaw):</label>
+                <input type="number" id="yaw" value="-30" step="1" min="-180" max="180">
+            </div>
+            <div>
+                <label>↕️ Вертикальный угол (pitch):</label>
+                <input type="number" id="pitch" value="-10" step="1" min="-75" max="90">
+            </div>
+            <div>
+                <label>🔍 Масштаб (hfov):</label>
+                <input type="number" id="hfov" value="100" step="1" min="30" max="120">
+                <small style="display:block; color:#666;">Меньше число – сильнее приближение</small>
+            </div>
         </div>
         
         <button onclick="generateIframe()">✨ Сгенерировать iframe</button>
         
-        <label>📋 Код для вставки:</label>
+        <label>📋 Код для вставки (скопируйте и вставьте в Тильду):</label>
         <textarea id="iframeCode" readonly></textarea>
         
-        <div>
-            <button class="copy-btn" onclick="copyToClipboard()">📋 Скопировать</button>
-            <button onclick="testIframe()">👁️ Предпросмотр</button>
-        </div>
+        <button class="copy-btn" onclick="copyToClipboard()">📋 Скопировать код</button>
         
-        <div class="note">
-            ⚡️ Используйте в HTML-блоке Тильды (Zero Block).<br>
-            Если не грузится — проверьте прямую ссылку на изображение в браузере.
-        </div>
-        
-        <div id="previewContainer" class="preview" style="display:none;">
-            <p><strong>Предпросмотр:</strong></p>
+        <div class="preview">
+            <p><strong>Предпросмотр (в реальном времени):</strong></p>
             <div id="iframePreview"></div>
         </div>
     </div>
 
     <script>
-        // ✅✅✅ ИСПРАВЛЕННЫЙ VIEWER_BASE (добавлена буква 'r') ✅✅✅
         const VIEWER_BASE = 'https://vladimirborovikov2004.github.io/360viewergenerator/';
         
         function generateIframe() {
-            const imgInput = document.getElementById('imageUrl');
-            const imgUrl = imgInput.value.trim();
-            const height = document.getElementById('iframeHeight').value;
-            const useSandbox = document.getElementById('useSandbox').checked;
-            const useAllow = document.getElementById('useAllow').checked;
+            const imgUrl = document.getElementById('imageUrl').value.trim();
+            const yaw   = document.getElementById('yaw').value;
+            const pitch = document.getElementById('pitch').value;
+            const hfov  = document.getElementById('hfov').value;
             
             if (!imgUrl) {
                 alert('Введите ссылку на изображение');
                 return;
             }
             
-            const viewerUrl = VIEWER_BASE + '?img=' + encodeURIComponent(imgUrl);
+            // Формируем URL с параметрами
+            const params = new URLSearchParams();
+            params.set('img', imgUrl);
+            params.set('yaw', yaw);
+            params.set('pitch', pitch);
+            params.set('hfov', hfov);
             
-            let sandboxAttr = '';
-            if (useSandbox) {
-                sandboxAttr = ' sandbox="allow-scripts allow-same-origin allow-popups allow-forms"';
-            }
+            const viewerUrl = VIEWER_BASE + '?' + params.toString();
             
-            let allowAttr = '';
-            if (useAllow) {
-                allowAttr = ' allow="accelerometer; gyroscope; xr-spatial-tracking;"';
-            }
-            
-            const iframeCode = `<iframe src="${viewerUrl}" width="100%" height="${height}" frameborder="0" allowfullscreen${sandboxAttr}${allowAttr} style="border: none;"></iframe>`;
+            // Генерируем iframe с width="100%" height="100%"
+            const iframeCode = `<iframe src="${viewerUrl}" width="100%" height="100%" frameborder="0" allowfullscreen sandbox="allow-scripts allow-same-origin allow-popups allow-forms" allow="accelerometer; gyroscope; xr-spatial-tracking;" style="border: none; display: block;"></iframe>`;
             
             document.getElementById('iframeCode').value = iframeCode;
-            testIframe();
-        }
-        
-        function testIframe() {
-            const code = document.getElementById('iframeCode').value;
-            const container = document.getElementById('previewContainer');
-            const previewDiv = document.getElementById('iframePreview');
             
-            previewDiv.innerHTML = code;
-            container.style.display = 'block';
+            // Обновляем предпросмотр
+            document.getElementById('iframePreview').innerHTML = iframeCode;
         }
         
         function copyToClipboard() {
@@ -108,14 +140,14 @@
             textarea.select();
             try {
                 document.execCommand('copy');
-                alert('✅ Скопировано!');
+                alert('✅ Код скопирован в буфер обмена!');
             } catch (e) {
-                alert('❌ Не удалось. Выделите и скопируйте вручную.');
+                alert('❌ Не удалось скопировать. Выделите текст и нажмите Ctrl+C');
             }
         }
         
         window.onload = function() {
-            // Пример с вашим последним изображением (можно поменять)
+            // Пример ссылки (можно оставить пустым или заменить на свою)
             document.getElementById('imageUrl').value = 'https://raw.githubusercontent.com/vladimirborovikov2004/rr/refs/heads/main/_rbadYft7az9NZvofpM1kQ2rdVbvMnGcVKvUeM2j3N6eoIjKfXJO9da4h9WbDxtRgYUiTobiBebzahAavRKOsg%3D%3D%20(1).jpeg';
             generateIframe();
         };
