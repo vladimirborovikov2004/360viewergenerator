@@ -8,7 +8,7 @@
         * { box-sizing: border-box; }
         body {
             font-family: system-ui, sans-serif;
-            max-width: 800px;
+            max-width: 1000px;
             margin: 40px auto;
             padding: 20px;
             background: #f5f5f5;
@@ -52,18 +52,35 @@
             margin-left: 10px;
         }
         .preview {
-            margin-top: 20px;
-            border: 1px dashed #ccc;
+            margin-top: 30px;
+            border: 1px solid #ddd;
+            border-radius: 12px;
             padding: 10px;
+            background: #fff;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        .preview p {
+            margin: 0 0 10px 0;
+            font-weight: 500;
+        }
+        #iframePreview {
+            width: 100%;
+            height: 600px;
             border-radius: 8px;
-            background: #fafafa;
+            overflow: hidden;
         }
         .row {
             display: flex;
             gap: 15px;
+            flex-wrap: wrap;
         }
         .row > div {
-            flex: 1;
+            flex: 1 1 200px;
+        }
+        small {
+            display: block;
+            color: #666;
+            margin-top: 4px;
         }
     </style>
 </head>
@@ -86,7 +103,7 @@
             <div>
                 <label>🔍 Масштаб (hfov):</label>
                 <input type="number" id="hfov" value="100" step="1" min="30" max="120">
-                <small style="display:block; color:#666;">Меньше число – сильнее приближение</small>
+                <small>Меньше число – сильнее приближение</small>
             </div>
         </div>
         
@@ -98,7 +115,7 @@
         <button class="copy-btn" onclick="copyToClipboard()">📋 Скопировать код</button>
         
         <div class="preview">
-            <p><strong>Предпросмотр (в реальном времени):</strong></p>
+            <p>👁️ Предпросмотр (в реальном времени):</p>
             <div id="iframePreview"></div>
         </div>
     </div>
@@ -117,7 +134,6 @@
                 return;
             }
             
-            // Формируем URL с параметрами
             const params = new URLSearchParams();
             params.set('img', imgUrl);
             params.set('yaw', yaw);
@@ -126,12 +142,9 @@
             
             const viewerUrl = VIEWER_BASE + '?' + params.toString();
             
-            // Генерируем iframe с width="100%" height="100%"
             const iframeCode = `<iframe src="${viewerUrl}" width="100%" height="100%" frameborder="0" allowfullscreen sandbox="allow-scripts allow-same-origin allow-popups allow-forms" allow="accelerometer; gyroscope; xr-spatial-tracking;" style="border: none; display: block;"></iframe>`;
             
             document.getElementById('iframeCode').value = iframeCode;
-            
-            // Обновляем предпросмотр
             document.getElementById('iframePreview').innerHTML = iframeCode;
         }
         
@@ -147,7 +160,6 @@
         }
         
         window.onload = function() {
-            // Пример ссылки (можно оставить пустым или заменить на свою)
             document.getElementById('imageUrl').value = 'https://raw.githubusercontent.com/vladimirborovikov2004/rr/refs/heads/main/_rbadYft7az9NZvofpM1kQ2rdVbvMnGcVKvUeM2j3N6eoIjKfXJO9da4h9WbDxtRgYUiTobiBebzahAavRKOsg%3D%3D%20(1).jpeg';
             generateIframe();
         };
