@@ -82,6 +82,11 @@
             color: #666;
             margin-top: 4px;
         }
+        .info-message {
+            margin-top: 8px;
+            color: #2a7;
+            font-size: 0.9em;
+        }
     </style>
 </head>
 <body>
@@ -90,6 +95,7 @@
         
         <label>🔗 Ссылка на изображение (прямой URL):</label>
         <input type="text" id="imageUrl" placeholder="https://raw.githubusercontent.com/.../panorama.jpg">
+        <small>Поддерживаются ссылки GitHub, они будут автоматически преобразованы в CDN для снятия лимитов.</small>
         
         <div class="row">
             <div>
@@ -123,8 +129,39 @@
     <script>
         const VIEWER_BASE = 'https://vladimirborovikov2004.github.io/360viewergenerator/';
         
+        // Функция преобразования ссылок GitHub в jsDelivr
+        function convertToJsDelivr(url) {
+            // Удаляем ?raw=true если есть
+            let cleanUrl = url.replace('?raw=true', '');
+            
+            // Паттерн для raw.githubusercontent.com
+            const rawPattern = /^https?:\/\/raw\.githubusercontent\.com\/([^\/]+)\/([^\/]+)\/([^\/]+)\/(.+)$/;
+            const rawMatch = cleanUrl.match(rawPattern);
+            if (rawMatch) {
+                const username = rawMatch[1];
+                const repo = rawMatch[2];
+                const branch = rawMatch[3];
+                const filePath = rawMatch[4];
+                return `https://cdn.jsdelivr.net/gh/${username}/${repo}@${branch}/${filePath}`;
+            }
+            
+            // Паттерн для обычных ссылок github.com/.../blob/...
+            const githubPattern = /^https?:\/\/github\.com\/([^\/]+)\/([^\/]+)\/blob\/([^\/]+)\/(.+)$/;
+            const githubMatch = cleanUrl.match(githubPattern);
+            if (githubMatch) {
+                const username = githubMatch[1];
+                const repo = githubMatch[2];
+                const branch = githubMatch[3];
+                const filePath = githubMatch[4];
+                return `https://cdn.jsdelivr.net/gh/${username}/${repo}@${branch}/${filePath}`;
+            }
+            
+            // Если не GitHub-ссылка, возвращаем как есть
+            return url;
+        }
+        
         function generateIframe() {
-            const imgUrl = document.getElementById('imageUrl').value.trim();
+            let imgUrl = document.getElementById('imageUrl').value.trim();
             const yaw   = document.getElementById('yaw').value;
             const pitch = document.getElementById('pitch').value;
             const hfov  = document.getElementById('hfov').value;
@@ -133,6 +170,12 @@
                 alert('Введите ссылку на изображение');
                 return;
             }
+            
+            // Преобразуем ссылку в CDN, если это GitHub
+            imgUrl = convertToJsDelivr(imgUrl);
+            
+            // Опционально показываем, что преобразование произошло (можно в консоль)
+            console.log('Используется URL:', imgUrl);
             
             const params = new URLSearchParams();
             params.set('img', imgUrl);
@@ -160,6 +203,7 @@
         }
         
         window.onload = function() {
+            // Пример начальной ссылки (она будет преобразована)
             document.getElementById('imageUrl').value = 'https://raw.githubusercontent.com/vladimirborovikov2004/rr/refs/heads/main/_rbadYft7az9NZvofpM1kQ2rdVbvMnGcVKvUeM2j3N6eoIjKfXJO9da4h9WbDxtRgYUiTobiBebzahAavRKOsg%3D%3D%20(1).jpeg';
             generateIframe();
         };
