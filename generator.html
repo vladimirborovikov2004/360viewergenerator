@@ -1,1 +1,232 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Генератор 360°</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: system-ui, sans-serif;
+            max-width: 1000px;
+            margin: 40px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        h1 { margin-top: 0; }
+        label {
+            display: block;
+            margin: 20px 0 8px;
+            font-weight: 500;
+        }
+        .input-group {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .input-group input {
+            flex: 1;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-family: monospace;
+        }
+        textarea {
+            height: 130px;
+            resize: vertical;
+            background: #fafafa;
+        }
+        button {
+            padding: 12px 24px;
+            background: #0066cc;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .clear-btn {
+            background: #dc3545;
+            padding: 12px 18px;
+        }
+        .copy-btn {
+            background: #28a745;
+            margin-left: 10px;
+        }
+        .preview {
+            margin-top: 30px;
+            border: 1px solid #ddd;
+            border-radius: 12px;
+            padding: 10px;
+            background: #fff;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        .preview p {
+            margin: 0 0 10px 0;
+            font-weight: 500;
+        }
+        #iframePreview {
+            width: 100%;
+            height: 600px;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .row {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        .row > div {
+            flex: 1 1 200px;
+        }
+        small {
+            display: block;
+            color: #666;
+            margin-top: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎥 Генератор 360° панорам</h1>
+        
+        <label>🔗 Ссылка на изображение (прямой URL):</label>
+        <div class="input-group">
+            <input type="text" id="imageUrl" placeholder="https://raw.githubusercontent.com/.../panorama.jpg" onclick="this.select()">
+            <button class="clear-btn" onclick="clearImageUrl()">✖ Очистить</button>
+        </div>
+        <small>Поддерживаются ссылки GitHub, они будут автоматически преобразованы в CDN для снятия лимитов.</small>
+        
+        <div class="row">
+            <div>
+                <label>↔️ Горизонтальный угол (yaw):</label>
+                <input type="number" id="yaw" value="0" step="1" min="-180" max="180">
+            </div>
+            <div>
+                <label>↕️ Вертикальный угол (pitch):</label>
+                <input type="number" id="pitch" value="0" step="1" min="-75" max="90">
+            </div>
+            <div>
+                <label>🔍 Масштаб (hfov):</label>
+                <input type="number" id="hfov" value="100" step="1" min="30" max="120">
+                <small>Меньше число – сильнее приближение</small>
+            </div>
+        </div>
+        
+        <button onclick="generateIframe()">✨ Сгенерировать iframe</button>
+        
+        <label>📋 Код для вставки (скопируйте и вставьте в Тильду):</label>
+        <textarea id="iframeCode" readonly></textarea>
+        
+        <button class="copy-btn" onclick="copyToClipboard()">📋 Скопировать код</button>
+        
+        <div class="preview">
+            <p>👁️ Предпросмотр:</p>
+            <div id="iframePreview"></div>
+        </div>
+    </div>
 
+    <script>
+        const VIEWER_BASE = 'https://vladimirborovikov2004.github.io/360viewergenerator/';
+        
+        // Функция преобразования ссылок GitHub в jsDelivr
+        function convertToJsDelivr(url) {
+            let cleanUrl = url.replace('?raw=true', '');
+            
+            // raw.githubusercontent.com
+            const rawPattern = /^https?:\/\/raw\.githubusercontent\.com\/([^\/]+)\/([^\/]+)\/([^\/]+)\/(.+)$/;
+            const rawMatch = cleanUrl.match(rawPattern);
+            if (rawMatch) {
+                const username = rawMatch[1];
+                const repo = rawMatch[2];
+                const branch = rawMatch[3];
+                const filePath = rawMatch[4];
+                return `https://cdn.jsdelivr.net/gh/${username}/${repo}@${branch}/${filePath}`;
+            }
+            
+            // github.com/.../blob/...
+            const githubPattern = /^https?:\/\/github\.com\/([^\/]+)\/([^\/]+)\/blob\/([^\/]+)\/(.+)$/;
+            const githubMatch = cleanUrl.match(githubPattern);
+            if (githubMatch) {
+                const username = githubMatch[1];
+                const repo = githubMatch[2];
+                const branch = githubMatch[3];
+                const filePath = githubMatch[4];
+                return `https://cdn.jsdelivr.net/gh/${username}/${repo}@${branch}/${filePath}`;
+            }
+            
+            return url;
+        }
+        
+        function getNumberValue(id, defaultValue) {
+            const el = document.getElementById(id);
+            const val = el.value.trim();
+            if (val === '') return defaultValue;
+            const num = Number(val);
+            return isNaN(num) ? defaultValue : num;
+        }
+        
+        function generateIframe() {
+            let imgUrl = document.getElementById('imageUrl').value.trim();
+            
+            if (!imgUrl) {
+                alert('Введите ссылку на изображение');
+                return;
+            }
+            
+            imgUrl = convertToJsDelivr(imgUrl);
+            
+            const yaw   = getNumberValue('yaw', 0);
+            const pitch = getNumberValue('pitch', 0);
+            const hfov  = getNumberValue('hfov', 100);
+            
+            console.log('Используется URL:', imgUrl);
+            
+            const params = new URLSearchParams();
+            params.set('img', imgUrl);
+            params.set('yaw', yaw);
+            params.set('pitch', pitch);
+            params.set('hfov', hfov);
+            
+            const viewerUrl = VIEWER_BASE + '?' + params.toString();
+            
+            const iframeCode = `<iframe src="${viewerUrl}" width="100%" height="100%" frameborder="0" allowfullscreen sandbox="allow-scripts allow-same-origin allow-popups allow-forms" allow="accelerometer; gyroscope; xr-spatial-tracking;" style="border: none; display: block;"></iframe>`;
+            
+            document.getElementById('iframeCode').value = iframeCode;
+            document.getElementById('iframePreview').innerHTML = iframeCode;
+        }
+        
+        function clearImageUrl() {
+            document.getElementById('imageUrl').value = '';
+            // Опционально фокус на поле после очистки
+            document.getElementById('imageUrl').focus();
+        }
+        
+        function copyToClipboard() {
+            const textarea = document.getElementById('iframeCode');
+            textarea.select();
+            try {
+                document.execCommand('copy');
+                alert('✅ Код скопирован в буфер обмена!');
+            } catch (e) {
+                alert('❌ Не удалось скопировать. Выделите текст и нажмите Ctrl+C');
+            }
+        }
+        
+        window.onload = function() {
+            // Пример начальной ссылки (можно оставить или удалить)
+            document.getElementById('imageUrl').value = 'https://raw.githubusercontent.com/vladimirborovikov2004/rr/refs/heads/main/_rbadYft7az9NZvofpM1kQ2rdVbvMnGcVKvUeM2j3N6eoIjKfXJO9da4h9WbDxtRgYUiTobiBebzahAavRKOsg%3D%3D%20(1).jpeg';
+            generateIframe();
+        };
+    </script>
+</body>
+</html>
