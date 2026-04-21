@@ -207,7 +207,6 @@
         
         function clearImageUrl() {
             document.getElementById('imageUrl').value = '';
-            // Опционально фокус на поле после очистки
             document.getElementById('imageUrl').focus();
         }
         
@@ -223,9 +222,13 @@
         }
         
         window.onload = function() {
-            // Пример начальной ссылки (можно оставить или удалить)
-            document.getElementById('imageUrl').value = 'https://raw.githubusercontent.com/vladimirborovikov2004/rr/refs/heads/main/_rbadYft7az9NZvofpM1kQ2rdVbvMnGcVKvUeM2j3N6eoIjKfXJO9da4h9WbDxtRgYUiTobiBebzahAavRKOsg%3D%3D%20(1).jpeg';
-            generateIframe();
+            // Все поля оставляем пустыми / с нулями
+            document.getElementById('imageUrl').value = '';
+            document.getElementById('yaw').value = 0;
+            document.getElementById('pitch').value = 0;
+            document.getElementById('hfov').value = 100;
+            document.getElementById('iframePreview').innerHTML = '';
+            document.getElementById('iframeCode').value = '';
         };
     </script>
 </body>
