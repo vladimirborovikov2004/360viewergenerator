@@ -24,10 +24,17 @@
                 imageUrl = 'https://raw.githubusercontent.com/vladimirborovikov2004/360gls/main/rbadYft7az9NZvofpM1kS1AGtu2iTaWmW4EFKDgwtNygMRECKbPZsAQlnkWiPUrhcRnRqQl1tDKcXSjWpaXQQ__-_2_.jpg';
             }
             
-            // Читаем углы и масштаб из параметров
-            const yaw   = parseFloat(params.get('yaw'))   || -30;
-            const pitch = parseFloat(params.get('pitch')) || -10;
-            const hfov  = parseFloat(params.get('hfov'))  || 100;
+            // Функция безопасного получения числа с значением по умолчанию
+            function getFloatParam(paramName, defaultValue) {
+                const val = params.get(paramName);
+                if (val === null) return defaultValue;
+                const num = parseFloat(val);
+                return isNaN(num) ? defaultValue : num;
+            }
+            
+            const yaw   = getFloatParam('yaw', 0);
+            const pitch = getFloatParam('pitch', 0);
+            const hfov  = getFloatParam('hfov', 100);
             
             pannellum.viewer('panorama', {
                 type: 'equirectangular',
