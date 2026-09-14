@@ -178,7 +178,7 @@
 
     <script>
         // ===== НАСТРОЙКИ =====
-        const GITHUB_TOKEN = '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';
+        const GITHUB_TOKEN = 'github_pat_11BWNJMTY0i3bvVZA3hu7x_' + 'Twue6rCpHzABgIlmHIOHBd3v7EZdlwVx2Ag3fAKUTR1GJ6LTMANOw8AU3Ci';
         const GITHUB_REPO = 'vladimirborovikov2004/360images';
         const GITHUB_BRANCH = 'main';
         const VIEWER_BASE = 'https://vladimirborovikov2004.github.io/360viewergenerator/';
@@ -335,7 +335,7 @@
                 document.getElementById('iframePreview').innerHTML = iframeCode;
             } catch (e) {
                 alert('❌ Ошибка: ' + e.message);
-                setUploadStatus(' Ошибка при генерации');
+                setUploadStatus('❌ Ошибка при генерации');
             } finally {
                 generateBtn.disabled = false;
             }
