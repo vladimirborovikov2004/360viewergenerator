@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -55,6 +54,10 @@
             cursor: pointer;
             font-size: 16px;
         }
+        button:disabled {
+            background: #999;
+            cursor: not-allowed;
+        }
         .clear-btn {
             background: #dc3545;
             padding: 12px 18px;
@@ -94,18 +97,54 @@
             color: #666;
             margin-top: 4px;
         }
+        /* Зона загрузки фото */
+        .drop-zone {
+            border: 2px dashed #0066cc;
+            border-radius: 10px;
+            padding: 30px;
+            text-align: center;
+            color: #333;
+            background: #f0f7ff;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .drop-zone:hover, .drop-zone.dragover {
+            background: #e1f0ff;
+        }
+        .drop-zone p {
+            margin: 0;
+            pointer-events: none;
+        }
+        .file-status {
+            margin-top: 8px;
+            font-weight: bold;
+            color: #0066cc;
+        }
+        .upload-status {
+            margin-top: 15px;
+            font-weight: 500;
+            color: #0066cc;
+            min-height: 20px;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>🎥 Генератор 360° панорам</h1>
         
-        <label>🔗 Ссылка на изображение (прямой URL):</label>
+        <label>🖼️ Фотография панорамы:</label>
+        <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+            <p>📁 Нажмите здесь или перетащите фото сюда</p>
+            <input type="file" id="fileInput" accept="image/*" style="display: none;">
+        </div>
+        <small class="file-status" id="fileStatus">Файл не выбран</small>
+        
+        <label>🔗 ...или вставьте ссылку на изображение вручную:</label>
         <div class="input-group">
-            <input type="text" id="imageUrl" placeholder="https://raw.githubusercontent.com/.../panorama.jpg" onclick="this.select()">
+            <input type="text" id="imageUrl" placeholder="https://..." onclick="this.select()">
             <button class="clear-btn" onclick="clearImageUrl()">✖ Очистить</button>
         </div>
-        <small>Поддерживаются ссылки GitHub, они будут автоматически преобразованы в CDN для снятия лимитов.</small>
+        <small>Если выбрано фото выше — ссылка игнорируется. Ссылки GitHub автоматически преобразуются в CDN.</small>
         
         <div class="row">
             <div>
@@ -123,7 +162,8 @@
             </div>
         </div>
         
-        <button onclick="generateIframe()">✨ Сгенерировать iframe</button>
+        <button id="generateBtn" onclick="generateIframe()">✨ Сгенерировать iframe</button>
+        <div class="upload-status" id="uploadStatus"></div>
         
         <label>📋 Код для вставки (скопируйте и вставьте в Тильду):</label>
         <textarea id="iframeCode" readonly></textarea>
@@ -137,37 +177,107 @@
     </div>
 
     <script>
+        // ===== НАСТРОЙКИ =====
+        const GITHUB_TOKEN = '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';
+        const GITHUB_REPO = 'vladimirborovikov2004/360images';
+        const GITHUB_BRANCH = 'main';
         const VIEWER_BASE = 'https://vladimirborovikov2004.github.io/360viewergenerator/';
-        
-        // Функция преобразования ссылок GitHub в jsDelivr
+        const MAX_FILE_SIZE = 18 * 1024 * 1024; // 18 МБ
+
+        let selectedFile = null;
+
+        const fileInput = document.getElementById('fileInput');
+        const fileStatus = document.getElementById('fileStatus');
+        const dropZone = document.getElementById('dropZone');
+
+        function handleFile(file) {
+            if (!file) return;
+            selectedFile = file;
+            fileStatus.textContent = '✅ Выбран файл: ' + file.name + ' (' + Math.round(file.size / 1024 / 1024 * 10) / 10 + ' МБ)';
+            fileStatus.style.color = '#28a745';
+        }
+
+        fileInput.addEventListener('change', function() {
+            if (this.files && this.files[0]) {
+                handleFile(this.files[0]);
+            }
+        });
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                dropZone.classList.add('dragover');
+            });
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                dropZone.classList.remove('dragover');
+            });
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                handleFile(e.dataTransfer.files[0]);
+            }
+        });
+
+        function readFileAsBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result.split(',')[1]);
+                reader.onerror = (err) => reject(new Error('Не удалось прочитать файл локально: ' + err));
+                reader.readAsDataURL(file);
+            });
+        }
+
+        async function uploadToGitHub(file) {
+            const base64 = await readFileAsBase64(file);
+            const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '-');
+            const uniqueName = Date.now() + '-' + Math.random().toString(36).slice(2, 8) + '-' + safeName;
+
+            const response = await fetch('https://api.github.com/repos/' + GITHUB_REPO + '/contents/' + encodeURIComponent(uniqueName), {
+                method: 'PUT',
+                headers: {
+                    'Authorization': 'Bearer ' + GITHUB_TOKEN,
+                    'Accept': 'application/vnd.github+json',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    message: 'Добавлена панорама: ' + file.name,
+                    content: base64,
+                    branch: GITHUB_BRANCH
+                })
+            });
+
+            if (!response.ok) {
+                let errorMessage = 'Ошибка GitHub (код ' + response.status + ')';
+                try {
+                    const err = await response.json();
+                    if (err.message) errorMessage = err.message;
+                } catch (e) {}
+                throw new Error(errorMessage);
+            }
+
+            return 'https://cdn.jsdelivr.net/gh/' + GITHUB_REPO + '@' + GITHUB_BRANCH + '/' + uniqueName;
+        }
+
         function convertToJsDelivr(url) {
             let cleanUrl = url.replace('?raw=true', '');
-            
-            // raw.githubusercontent.com
             const rawPattern = /^https?:\/\/raw\.githubusercontent\.com\/([^\/]+)\/([^\/]+)\/([^\/]+)\/(.+)$/;
             const rawMatch = cleanUrl.match(rawPattern);
             if (rawMatch) {
-                const username = rawMatch[1];
-                const repo = rawMatch[2];
-                const branch = rawMatch[3];
-                const filePath = rawMatch[4];
-                return `https://cdn.jsdelivr.net/gh/${username}/${repo}@${branch}/${filePath}`;
+                return `https://cdn.jsdelivr.net/gh/${rawMatch[1]}/${rawMatch[2]}@${rawMatch[3]}/${rawMatch[4]}`;
             }
-            
-            // github.com/.../blob/...
             const githubPattern = /^https?:\/\/github\.com\/([^\/]+)\/([^\/]+)\/blob\/([^\/]+)\/(.+)$/;
             const githubMatch = cleanUrl.match(githubPattern);
             if (githubMatch) {
-                const username = githubMatch[1];
-                const repo = githubMatch[2];
-                const branch = githubMatch[3];
-                const filePath = githubMatch[4];
-                return `https://cdn.jsdelivr.net/gh/${username}/${repo}@${branch}/${filePath}`;
+                return `https://cdn.jsdelivr.net/gh/${githubMatch[1]}/${githubMatch[2]}@${githubMatch[3]}/${githubMatch[4]}`;
             }
-            
             return url;
         }
-        
+
         function getNumberValue(id, defaultValue) {
             const el = document.getElementById(id);
             const val = el.value.trim();
@@ -175,44 +285,77 @@
             const num = Number(val);
             return isNaN(num) ? defaultValue : num;
         }
-        
-        function generateIframe() {
-            let imgUrl = document.getElementById('imageUrl').value.trim();
-            
-            if (!imgUrl) {
-                alert('Введите ссылку на изображение');
-                return;
-            }
-            
-            imgUrl = convertToJsDelivr(imgUrl);
-            
-            const yaw   = getNumberValue('yaw', 0);
-            const pitch = getNumberValue('pitch', 0);
-            const hfov  = getNumberValue('hfov', 100);
-            
-            console.log('Используется URL:', imgUrl);
-            
-            const params = new URLSearchParams();
-            params.set('img', imgUrl);
-            params.set('yaw', yaw);
-            params.set('pitch', pitch);
-            params.set('hfov', hfov);
-            
-            const viewerUrl = VIEWER_BASE + '?' + params.toString();
-            
-            const iframeCode = `<iframe src="${viewerUrl.replace(/&/g, '&amp;')}" width="100%" height="100%" frameborder="0" allowfullscreen sandbox="allow-scripts allow-same-origin allow-popups allow-forms" allow="accelerometer; gyroscope; xr-spatial-tracking;" style="border: none; display: block;"></iframe>`;
-            
-            document.getElementById('iframeCode').value = iframeCode;
-            document.getElementById('iframePreview').innerHTML = iframeCode;
+
+        function setUploadStatus(text) {
+            document.getElementById('uploadStatus').textContent = text;
         }
-        
+
+        async function generateIframe() {
+            const generateBtn = document.getElementById('generateBtn');
+            let imgUrl = '';
+
+            generateBtn.disabled = true;
+
+            try {
+                if (selectedFile) {
+                    if (selectedFile.size > MAX_FILE_SIZE) {
+                        alert('❌ Файл слишком большой (больше 18 МБ). Уменьшите размер изображения.');
+                        generateBtn.disabled = false;
+                        return;
+                    }
+
+                    setUploadStatus('⏳ Идёт загрузка фото на GitHub...');
+                    imgUrl = await uploadToGitHub(selectedFile);
+                    setUploadStatus('✅ Фото загружено: ' + imgUrl);
+                    document.getElementById('imageUrl').value = imgUrl;
+                } else {
+                    imgUrl = document.getElementById('imageUrl').value.trim();
+                    if (!imgUrl) {
+                        alert('Выберите файл или укажите ссылку');
+                        generateBtn.disabled = false;
+                        return;
+                    }
+                    imgUrl = convertToJsDelivr(imgUrl);
+                }
+
+                const yaw = getNumberValue('yaw', 0);
+                const pitch = getNumberValue('pitch', 0);
+                const hfov = getNumberValue('hfov', 100);
+
+                const params = new URLSearchParams();
+                params.set('img', imgUrl);
+                params.set('yaw', yaw);
+                params.set('pitch', pitch);
+                params.set('hfov', hfov);
+
+                const viewerUrl = VIEWER_BASE + '?' + params.toString();
+                const iframeCode = `<iframe src="${viewerUrl.replace(/&/g, '&amp;')}" width="100%" height="100%" frameborder="0" allowfullscreen sandbox="allow-scripts allow-same-origin allow-popups allow-forms" allow="accelerometer; gyroscope; xr-spatial-tracking;" style="border: none; display: block;"></iframe>`;
+
+                document.getElementById('iframeCode').value = iframeCode;
+                document.getElementById('iframePreview').innerHTML = iframeCode;
+            } catch (e) {
+                alert('❌ Ошибка: ' + e.message);
+                setUploadStatus(' Ошибка при генерации');
+            } finally {
+                generateBtn.disabled = false;
+            }
+        }
+
         function clearImageUrl() {
+            selectedFile = null;
+            fileInput.value = '';
+            fileStatus.textContent = 'Файл не выбран';
+            fileStatus.style.color = '#666';
             document.getElementById('imageUrl').value = '';
             document.getElementById('imageUrl').focus();
         }
-        
+
         function copyToClipboard() {
             const textarea = document.getElementById('iframeCode');
+            if (!textarea.value) {
+                alert('Сначала сгенерируйте код');
+                return;
+            }
             textarea.select();
             try {
                 document.execCommand('copy');
@@ -221,10 +364,9 @@
                 alert('❌ Не удалось скопировать. Выделите текст и нажмите Ctrl+C');
             }
         }
-        
+
         window.onload = function() {
-            // Все поля оставляем пустыми / с нулями
-            document.getElementById('imageUrl').value = '';
+            clearImageUrl();
             document.getElementById('yaw').value = 0;
             document.getElementById('pitch').value = 0;
             document.getElementById('hfov').value = 100;
