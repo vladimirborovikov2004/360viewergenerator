@@ -199,7 +199,7 @@
             
             const viewerUrl = VIEWER_BASE + '?' + params.toString();
             
-            const iframeCode = `<iframe src="${viewerUrl}" width="100%" height="100%" frameborder="0" allowfullscreen sandbox="allow-scripts allow-same-origin allow-popups allow-forms" allow="accelerometer; gyroscope; xr-spatial-tracking;" style="border: none; display: block;"></iframe>`;
+            const iframeCode = `<iframe src="${viewerUrl.replace(/&/g, '&amp;')}" width="100%" height="100%" frameborder="0" allowfullscreen sandbox="allow-scripts allow-same-origin allow-popups allow-forms" allow="accelerometer; gyroscope; xr-spatial-tracking;" style="border: none; display: block;"></iframe>`;
             
             document.getElementById('iframeCode').value = iframeCode;
             document.getElementById('iframePreview').innerHTML = iframeCode;
